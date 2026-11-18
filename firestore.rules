@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /readings/{readingId} {
+      // Public dashboard access is read-only. Never allow browser clients to write.
+      allow read: if true;
+      // Provision the ESP32 with a Firebase Auth token carrying device == true.
+      allow create: if request.auth != null && request.auth.token.device == true;
+      allow update, delete: if false;
+    }
+  }
+}
