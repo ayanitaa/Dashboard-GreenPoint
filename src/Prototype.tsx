@@ -415,11 +415,43 @@ export default function Prototype() {
   const [tab, setTab] = useState<Tab>("Inicio");
   const [noticeOpen, setNoticeOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const [noticePosition, setNoticePosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const [toast, setToast] = useState("");
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>("24 horas");
   const [historyAlertOnly, setHistoryAlertOnly] = useState(false);
   const [historyVisibleCount, setHistoryVisibleCount] = useState(25);
   const toggleTheme = () => setTheme((current) => current === "dark" ? "light" : "dark");
+  useEffect(() => {
+    if (!noticeOpen) {
+      setNoticePosition(null);
+      return;
+    }
+
+    const placePopover = () => {
+      const button = notificationRef.current?.querySelector<HTMLButtonElement>(".notification-button");
+      const header = notificationRef.current?.closest<HTMLElement>(".web-header");
+      if (!button || !header) return;
+
+      const buttonRect = button.getBoundingClientRect();
+      const headerRect = header.getBoundingClientRect();
+      const gutter = 12;
+      const leftBound = Math.max(gutter, headerRect.left + gutter);
+      const rightBound = Math.min(window.innerWidth - gutter, headerRect.right - gutter);
+      const maxWidth = window.innerWidth <= 639 ? 360 : 880;
+      const width = Math.max(0, Math.min(maxWidth, rightBound - leftBound));
+      const left = Math.min(Math.max(buttonRect.right - width, leftBound), rightBound - width);
+
+      setNoticePosition({ top: buttonRect.bottom + 10, left, width });
+    };
+
+    placePopover();
+    window.addEventListener("resize", placePopover);
+    window.addEventListener("scroll", placePopover, true);
+    return () => {
+      window.removeEventListener("resize", placePopover);
+      window.removeEventListener("scroll", placePopover, true);
+    };
+  }, [noticeOpen]);
   useEffect(() => {
     if (!noticeOpen) return;
     const handlePointerDown = (event: PointerEvent) => {
@@ -629,7 +661,7 @@ export default function Prototype() {
                   <BellIcon />{activeAlerts.length > 0 && <span className="notification-count">{activeAlerts.length}</span>}
                 </button>
                 {noticeOpen && (
-                  <section className="alert-popover" id="notification-popover" role="dialog" aria-label="Notificaciones recientes">
+                  <section className="alert-popover" id="notification-popover" role="dialog" aria-label="Notificaciones recientes" style={noticePosition ?? undefined}>
                     <header><div><b>Notificaciones</b><span>{activeAlerts.length === 0 ? "Sin alertas activas" : activeAlerts.length === 1 ? "1 alerta activa" : `${activeAlerts.length} alertas activas`}</span></div><button aria-label="Cerrar notificaciones" onClick={() => setNoticeOpen(false)}><Cross2Icon /></button></header>
                     {activeAlerts.length ? <div className="active-alert-list">{activeAlerts.map((item) => <p key={item}><ExclamationTriangleIcon />{item}</p>)}</div> : <div className="no-active-alerts"><CheckCircledIcon />Sin alertas activas</div>}
                     <h4>Alertas recientes</h4>
